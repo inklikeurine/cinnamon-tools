@@ -16,11 +16,23 @@ PACKAGES="cjs cinnamon-desktop-data
   python3 python3-gi gir1.2-glib-2.0 gir1.2-gtk-3.0 gir1.2-gdkpixbuf-2.0 gir1.2-xapp-1.0 gir1.2-gsound-1.0
   dbus dbus-x11 xvfb xauth git ca-certificates"
 
-apt-get update -qq
-# cinnamon-common holds Cinnamon's own js/ tree and settings widgets; if a
-# release ever drops that package, the full cinnamon package has them too.
-apt-get install -y -qq --no-install-recommends $PACKAGES cinnamon-common \
-  || apt-get install -y -qq --no-install-recommends $PACKAGES cinnamon
+# The package servers sometimes time out. A failed index download leaves
+# stale package lists (and then "404 Not Found"), so refresh and install up
+# to three times before giving up.
+APT="apt-get -o Acquire::Retries=3 -qq"
+install() {
+  # cinnamon-common holds Cinnamon's own js/ tree and settings widgets; if a
+  # release ever drops that package, the full cinnamon package has them too.
+  $APT update -o APT::Update::Error-Mode=any \
+    && { $APT install -y --no-install-recommends $PACKAGES cinnamon-common \
+         || $APT install -y --no-install-recommends $PACKAGES cinnamon; }
+}
+for attempt in 1 2 3; do
+  if install; then break; fi
+  if [ "$attempt" = 3 ]; then echo "could not install the packages after 3 tries"; exit 1; fi
+  echo "package install failed (try $attempt of 3); retrying in 20 seconds"
+  sleep 20
+done
 
 # The system message bus is not running in a container; some tests need it.
 mkdir -p /run/dbus
