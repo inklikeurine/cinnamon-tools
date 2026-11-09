@@ -1,0 +1,12 @@
+# The applet has no packages to keep current, so the only thing to update is
+# the GitHub Actions the workflows use (actions/checkout). Dependabot opens
+# one grouped pull request a month when any of them update.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]

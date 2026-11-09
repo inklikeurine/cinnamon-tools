@@ -1,0 +1,13 @@
+# Harness output: logs, screenshots, result.json, release zips, Spices folders
+out/
+
+__pycache__/
+*.pyc
+
+# Per-user AI agent state
+.claude/
+CLAUDE.local.md
+
+.DS_Store
+*~
+*.swp

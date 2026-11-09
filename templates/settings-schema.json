@@ -1,0 +1,21 @@
+{
+  "layout": {
+    "type": "layout",
+    "pages": ["page-general"],
+    "page-general": {
+      "type": "page",
+      "title": "General",
+      "sections": ["section-main"]
+    },
+    "section-main": {
+      "type": "section",
+      "title": "__NAME__",
+      "keys": ["enabled"]
+    }
+  },
+  "enabled": {
+    "type": "switch",
+    "default": true,
+    "description": "Enable periodic work"
+  }
+}
