@@ -1,0 +1,106 @@
+name: Checks
+
+# A change to these tools changes every applet's checks, so before it lands,
+# every public applet must still pass with it: the validator and the tests,
+# run against each applet's current main (or its branch with the same name as
+# this pull request's) with the tools from this pull request. The tests of
+# the shared modules and of the tools themselves run too. Dependabot's
+# updates go through this as well.
+#
+# They run in Linux Mint 22.3, so the tests get Cinnamon 6.6's own script
+# engine (cjs) and libraries. The live check needs a running Cinnamon
+# desktop, so it can't run here.
+#
+# This runs the pull request's code, so it gets no secrets and can't write to
+# any repository.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tools:
+    name: Shared modules and tools
+    runs-on: ubuntu-24.04
+    container: linuxmintd/mint22.3-amd64
+    timeout-minutes: 30
+    steps:
+      - name: Install git
+        run: |
+          apt-get update -qq
+          DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends git ca-certificates
+
+      - uses: actions/checkout@v7
+        with:
+          path: cinnamon-tools
+
+      - name: Install what the tests need
+        run: sh cinnamon-tools/tools/ci_setup.sh
+
+      - name: Tests
+        run: xvfb-run -a python3 cinnamon-tools/harness/run.py shared --tests
+
+      - name: Show the test logs
+        if: failure()
+        run: cat cinnamon-tools/out/shared/*.log 2>/dev/null || true
+
+  applet:
+    name: ${{ matrix.applet }}
+    runs-on: ubuntu-24.04
+    container: linuxmintd/mint22.3-amd64
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false          # one broken applet shouldn't hide the others' results
+      matrix:
+        applet: [hush, switchboard, wallshift]
+    steps:
+      - name: Install git
+        run: |
+          apt-get update -qq
+          DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends git ca-certificates
+
+      - uses: actions/checkout@v7
+        with:
+          path: cinnamon-tools
+
+      # The applet's branch with the same name as this pull request's, if it
+      # has one (a change that needs both), else its main.
+      - name: Choose the applet's branch
+        id: applet
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+          REPO: https://github.com/inklikeurine/cinnamon-${{ matrix.applet }}
+        run: |
+          ref=main
+          if [ -n "$HEAD_REF" ] && git ls-remote --exit-code --heads "$REPO" "refs/heads/$HEAD_REF" >/dev/null 2>&1; then
+            ref="$HEAD_REF"
+          fi
+          echo "Using cinnamon-${{ matrix.applet }} at $ref"
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v7
+        with:
+          repository: inklikeurine/cinnamon-${{ matrix.applet }}
+          ref: ${{ steps.applet.outputs.ref }}
+          path: ${{ matrix.applet }}
+          fetch-depth: 0          # history and release tags, for the version check
+
+      - name: Install what the tests need
+        run: sh cinnamon-tools/tools/ci_setup.sh
+
+      - name: Validate
+        working-directory: ${{ matrix.applet }}
+        run: python3 ../cinnamon-tools/tools/check.py ${{ matrix.applet }}
+
+      - name: Tests
+        working-directory: ${{ matrix.applet }}
+        run: xvfb-run -a python3 ../cinnamon-tools/harness/run.py ${{ matrix.applet }}@inklikeurine --tests
+
+      - name: Show the test logs
+        if: failure()
+        run: cat cinnamon-tools/out/${{ matrix.applet }}@inklikeurine/*.log 2>/dev/null || true

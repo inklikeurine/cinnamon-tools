@@ -1,0 +1,88 @@
+name: Checks
+
+# Every push to main and every pull request: the validator, the headless
+# tests and, on pull requests, proof that the new tests fail without the
+# change. They run in Linux Mint 22.3, so the tests get Cinnamon 6.6's own
+# script engine (cjs) and libraries, the same as on the maintainer's desktop.
+# The live check needs a running Cinnamon desktop, so it can't run here; it is
+# a local step (AGENTS.md, Checking your work).
+#
+# The shared tools come from github.com/inklikeurine/cinnamon-tools, checked
+# out beside this repository exactly as on a developer's computer.
+#
+# This runs the pull request's code, so it gets no secrets and can't write to
+# the repository. The guards that a pull request must not be able to switch
+# off are in guards.yml.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    # labeled/unlabeled: re-run when the maintainer adds `no-test-needed`.
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Validate and test
+    runs-on: ubuntu-24.04
+    container: linuxmintd/mint22.3-amd64
+    timeout-minutes: 30
+    steps:
+      # Before the checkouts: without git in the container, actions/checkout
+      # downloads a copy with no history or release tags.
+      - name: Install git
+        run: |
+          apt-get update -qq
+          DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends git ca-certificates
+
+      - uses: actions/checkout@v7
+        with:
+          path: __SHORTNAME__
+          fetch-depth: 0          # history and release tags, for the version check
+
+      # A pull request whose branch name also exists in cinnamon-tools is
+      # checked with that branch of the tools, so a change that needs both
+      # can be tested together. Everything else uses the tools' main.
+      - name: Choose the tools' branch
+        id: tools
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          ref=main
+          if [ -n "$HEAD_REF" ] && git ls-remote --exit-code --heads https://github.com/inklikeurine/cinnamon-tools "refs/heads/$HEAD_REF" >/dev/null 2>&1; then
+            ref="$HEAD_REF"
+          fi
+          echo "Using cinnamon-tools at $ref"
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v7
+        with:
+          repository: inklikeurine/cinnamon-tools
+          ref: ${{ steps.tools.outputs.ref }}
+          path: cinnamon-tools
+
+      - name: Install what the tests need
+        run: sh cinnamon-tools/tools/ci_setup.sh
+
+      - name: Validate
+        working-directory: __SHORTNAME__
+        run: python3 ../cinnamon-tools/tools/check.py __SHORTNAME__
+
+      - name: Tests
+        working-directory: __SHORTNAME__
+        run: xvfb-run -a python3 ../cinnamon-tools/harness/run.py __UUID__ --tests
+
+      - name: New tests fail without the change
+        if: github.event_name == 'pull_request'
+        working-directory: __SHORTNAME__
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: xvfb-run -a python3 ../cinnamon-tools/tools/fail_first.py __SHORTNAME__ "$BASE_SHA"
+
+      - name: Show the test logs
+        if: failure()
+        run: cat cinnamon-tools/out/__UUID__/*.log 2>/dev/null || true

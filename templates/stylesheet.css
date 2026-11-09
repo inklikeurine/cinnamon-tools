@@ -1,0 +1,6 @@
+/* __NAME__ — every class is prefixed with the applet name so it cannot
+   collide with the theme. Delete this file if the applet adds no actors. */
+
+.__SHORTNAME__-example {
+    padding: 4px 8px;
+}

@@ -1,0 +1,41 @@
+# --- AI agent state --------------------------------------------------------
+# .claude/settings.json (hook + permissions) and CLAUDE.md are committed on
+# purpose: a fresh clone keeps its guard rail. Per-user files are not.
+# Tests are committed in tests/; harness output goes to ../cinnamon-tools/out/.
+.claude/*
+!.claude/settings.json
+CLAUDE.local.md
+.cursor/
+.aider*
+
+# --- Build / bytecode ------------------------------------------------------
+__pycache__/
+*.pyc
+dist/
+*.zip
+*.mo
+
+# --- Operating system ------------------------------------------------------
+.DS_Store
+._*
+Thumbs.db
+Desktop.ini
+*~
+
+# --- Editors / IDEs --------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-workspace
+
+# --- Secrets / env ---------------------------------------------------------
+.env
+.env.*
+!.env.example
+
+# --- Misc ------------------------------------------------------------------
+*.log
+*.tmp
+*.bak
+*.orig

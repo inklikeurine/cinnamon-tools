@@ -1,0 +1,11 @@
+{
+  "tests": true,
+  "live": true,
+  "wait": 3,
+  "shared": [],
+  "pre": [],
+  "evals": [
+    "imports.ui.appletManager.getRunningInstancesForUuid('__UUID__').length === 1"
+  ],
+  "screenshot": true
+}

@@ -1,0 +1,8 @@
+{
+  "uuid": "__UUID__",
+  "name": "__NAME__",
+  "description": "__DESCRIPTION__",
+  "version": "__VERSION__",
+  "cinnamon-version": ["6.6"],
+  "max-instances": 1
+}
